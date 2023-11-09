@@ -1,3 +1,6 @@
+import messages.Info;
+import messages.Message;
+
 import java.io.IOException;
 import java.net.Socket;
 import java.util.Collection;
@@ -5,7 +8,6 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
@@ -39,7 +41,7 @@ public class Node {
                 System.out.println(data);
             }
             try {
-                TimeUnit.MILLISECONDS.sleep(200);
+                TimeUnit.MILLISECONDS.sleep(100);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -50,14 +52,15 @@ public class Node {
         var scanner = new Scanner(System.in);
 
         while (true) {
-            var str = scanner.nextLine();
+            var info = new Info();
+            info.text = scanner.nextLine();
 
             Stream.of(
                             server.getConnections(),
                             connections
                     )
                     .flatMap(Collection::stream)
-                    .forEach(c -> c.write(new Data(str)));
+                    .forEach(c -> c.write(info));
         }
     }
 }
