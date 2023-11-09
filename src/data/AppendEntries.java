@@ -1,6 +1,9 @@
-package messages;
+package data;
 
-public class Info implements Data {
+import java.util.List;
+
+public class AppendEntries implements Data {
+    public List<Entry> entries;
     public String text;
     @Override
     public <R> R accept(DataVisitor<R> visitor) {

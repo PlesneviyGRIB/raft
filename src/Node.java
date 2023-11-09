@@ -1,5 +1,5 @@
-import messages.Info;
-import messages.Message;
+import data.AppendEntries;
+import data.Message;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -12,20 +12,24 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 public class Node {
-    private final BlockingQueue<Message> queue;
+    public final String HOST = "127.0.0.1";
+    private final BlockingQueue<Message> queue = new LinkedBlockingQueue<>();
     private Server server;
+    private List<Integer> slaves;
     private List<ServerConnection> connections;
 
-    public Node(Integer port, List<Integer> slaves) {
-        queue = new LinkedBlockingQueue<>();
+    public Node(Integer port, List<Integer> slaves) throws IOException {
         server = new Server(port, queue);
-        new Thread(server).start();
+        this.slaves = slaves;
+    }
 
+    public void start() {
+        new Thread(server).start();
         connections = slaves.stream()
-                .filter(clientPort -> clientPort < port)
+                .filter(clientPort -> clientPort < server.getPort())
                 .map(clientPort -> {
                     try {
-                        return new ServerConnection(new Socket("127.0.0.1", clientPort), queue);
+                        return new ServerConnection(new Socket(HOST, clientPort), queue);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -34,25 +38,20 @@ public class Node {
                 .toList();
     }
 
-    public void readData() {
+    public void readData() throws InterruptedException {
         while (true) {
             var data = queue.poll();
             if (data != null) {
                 System.out.println(data);
             }
-            try {
-                TimeUnit.MILLISECONDS.sleep(100);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            TimeUnit.MILLISECONDS.sleep(100);
         }
     }
 
     public void writeData() {
         var scanner = new Scanner(System.in);
-
         while (true) {
-            var info = new Info();
+            var info = new AppendEntries();
             info.text = scanner.nextLine();
 
             Stream.of(
@@ -60,7 +59,13 @@ public class Node {
                             connections
                     )
                     .flatMap(Collection::stream)
-                    .forEach(c -> c.write(info));
+                    .forEach(c -> {
+                        try {
+                            c.write(info);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
         }
     }
 }

@@ -1,4 +1,4 @@
-import messages.Message;
+import data.Message;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -11,14 +11,10 @@ public class Server implements Runnable {
     private final List<ServerConnection> connections;
     private final BlockingQueue<Message> queue;
 
-    public Server(Integer port, BlockingQueue<Message> queue) {
-        try {
-            this.serverSocket = new ServerSocket(port);
-            this.connections = new ArrayList<>();
-            this.queue = queue;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    public Server(Integer port, BlockingQueue<Message> queue) throws IOException {
+        this.serverSocket = new ServerSocket(port);
+        this.connections = new ArrayList<>();
+        this.queue = queue;
     }
 
     @Override
@@ -37,5 +33,9 @@ public class Server implements Runnable {
 
     public List<ServerConnection> getConnections() {
         return connections;
+    }
+
+    public Integer getPort() {
+        return serverSocket.getLocalPort();
     }
 }
