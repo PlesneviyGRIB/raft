@@ -1,19 +1,23 @@
-import data.Message;
+package com.savchenko.connection;
+
+import com.savchenko.data.Message;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 
 public class Server implements Runnable {
     private final ServerSocket serverSocket;
-    private final List<ServerConnection> connections;
+    private final Collection<ServerConnection> connections;
     private final BlockingQueue<Message> queue;
 
     public Server(Integer port, BlockingQueue<Message> queue) throws IOException {
         this.serverSocket = new ServerSocket(port);
-        this.connections = new ArrayList<>();
+        this.connections = Collections.synchronizedCollection(new ArrayList<>());
         this.queue = queue;
     }
 
@@ -32,7 +36,7 @@ public class Server implements Runnable {
     }
 
     public List<ServerConnection> getConnections() {
-        return connections;
+        return connections.stream().filter(c -> !c.isDead()).toList();
     }
 
     public Integer getPort() {

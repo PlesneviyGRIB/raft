@@ -1,4 +1,7 @@
-import data.*;
+package com.savchenko.connection;
+
+import com.savchenko.Utils;
+import com.savchenko.data.*;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -12,6 +15,7 @@ public class ServerConnection extends Thread {
     private final Socket socket;
     private final OutputStreamWriter writer;
     private final BlockingQueue<Message> queue;
+    private Boolean isDead = false;
 
     public ServerConnection(Socket socket, BlockingQueue<Message> queue) throws IOException {
         this.socket = socket;
@@ -21,35 +25,35 @@ public class ServerConnection extends Thread {
 
     @Override
     public void run() {
-        logger.info(String.format("NEW CLIENT %s", socket.getRemoteSocketAddress().toString()));
+        logger.info(Utils.formatSuccess("NEW CLIENT %s", socket.getRemoteSocketAddress().toString()));
         try {
             var scanner = new Scanner(socket.getInputStream());
             while (!Thread.currentThread().isInterrupted() && !socket.isClosed()) {
                 var rawData = scanner.next();
-                var message = new Message(socket.getRemoteSocketAddress().toString(), readData(rawData));
+                var message = new Message(socket.getRemoteSocketAddress().toString(), Utils.readObject(rawData));
                 queue.add(message);
             }
+        } catch (Exception ignore) {}
+        finally {
+            isDead = true;
+            logger.info(Utils.formatError("DISCONNECTED %s", socket.getRemoteSocketAddress().toString()));
+        }
+    }
+
+    public void write(Data data) {
+        try {
+            writer.write(Utils.writeObject(data).concat(" "));
+            writer.flush();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private Data readData(String token) {
-        var wrapper = Utils.<DataWrapper>readObject(token);
-        if (wrapper.type() == DataType.APPEND_ENTRIES) {
-            return Utils.<AppendEntries>readObject(wrapper.rawData());
-        }
-        return null;
+    public boolean isDead() {
+        return isDead;
     }
 
-    public void write(Data data) throws IOException {
-        var type = data.accept(new DataVisitor<DataType>() {
-            @Override
-            public DataType visit(AppendEntries entries){
-                return DataType.APPEND_ENTRIES;
-            }
-        });
-        writer.write(Utils.writeObject(new DataWrapper(type, Utils.writeObject(data))).concat(" "));
-        writer.flush();
+    public Integer getPort(){
+        return socket.getPort();
     }
 }

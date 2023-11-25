@@ -1,4 +1,4 @@
-package data;
+package com.savchenko.data;
 
 import java.util.Map;
 
