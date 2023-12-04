@@ -12,7 +12,7 @@ public class AppendEntries implements Data {
 
     @Override
     public <R> R accept(DataVisitor<R> visitor) {
-        return visitor.visit(this);
+        return visitor.accept(this);
     }
 
     @Override

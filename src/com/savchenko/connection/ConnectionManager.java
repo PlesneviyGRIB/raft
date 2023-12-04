@@ -1,6 +1,7 @@
 package com.savchenko.connection;
 
-import com.savchenko.data.AppendEntries;
+import com.savchenko.Constants;
+import com.savchenko.data.InitMessage;
 import com.savchenko.data.Message;
 
 import java.io.IOException;
@@ -11,8 +12,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 public class ConnectionManager implements Runnable {
-    public final Integer TIMEOUT = 1000;
-    public final String HOST = "127.0.0.1";
+
     private BlockingQueue<Message> queue;
     private Server server;
     private Collection<ServerConnection> connections = Collections.synchronizedCollection(new ArrayList<>());
@@ -29,9 +29,8 @@ public class ConnectionManager implements Runnable {
         new Thread(server).start();
         while (!Thread.currentThread().isInterrupted()) {
             renewConnections();
-            //sendHeartBit();
             try {
-                TimeUnit.MILLISECONDS.sleep(TIMEOUT);
+                TimeUnit.MILLISECONDS.sleep(Constants.RENEW_CONNECTION_TIMEOUT);
             } catch (InterruptedException ignore) {
             }
         }
@@ -41,14 +40,14 @@ public class ConnectionManager implements Runnable {
         var preservedConnections = new ArrayList<>(connections.stream().filter(c -> !c.isDead()).toList());
 
         var targetConnections = new ArrayList<>(deadConnections);
-        targetConnections.addAll(connections.stream().filter(ServerConnection::isDead).map(ServerConnection::getPort).toList());
+        targetConnections.addAll(connections.stream().filter(ServerConnection::isDead).map(ServerConnection::getLocalPort).toList());
         deadConnections = new ArrayList<>();
 
         var newConnections = targetConnections.stream()
                 .filter(clientPort -> clientPort < server.getPort())
                 .map(clientPort -> {
                     try {
-                        return new ServerConnection(new Socket(HOST, clientPort), queue);
+                        return new ServerConnection(new Socket(Constants.HOST, clientPort), queue);
                     } catch (IOException e) {
                         deadConnections.add(clientPort);
                         return null;
@@ -56,6 +55,7 @@ public class ConnectionManager implements Runnable {
                 })
                 .filter(Objects::nonNull)
                 .peek(Thread::start)
+                .peek(c -> c.send(new InitMessage(server.getPort())))
                 .toList();
 
         preservedConnections.addAll(newConnections);
@@ -66,8 +66,12 @@ public class ConnectionManager implements Runnable {
         return Stream.of(server.getConnections(), connections).flatMap(Collection::stream).toList();
     }
 
-    public void sendHeartBit(){
-        var heartBit = new AppendEntries();
-        getConnections().forEach(c -> c.write(heartBit));
+    public Optional<ServerConnection> getConnection(Integer port) {
+        return Stream.of(server.getConnections(), connections).flatMap(Collection::stream).filter(c -> c.getResolvedPort().equals(port)).findFirst();
     }
+
+    public Integer getPort(){
+        return server.getPort();
+    }
+
 }

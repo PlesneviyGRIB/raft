@@ -15,6 +15,7 @@ public class ServerConnection extends Thread {
     private final Socket socket;
     private final OutputStreamWriter writer;
     private final BlockingQueue<Message> queue;
+    private Integer resolvedPort;
     private Boolean isDead = false;
 
     public ServerConnection(Socket socket, BlockingQueue<Message> queue) throws IOException {
@@ -25,27 +26,49 @@ public class ServerConnection extends Thread {
 
     @Override
     public void run() {
-        logger.info(Utils.formatSuccess("NEW CLIENT %s", socket.getRemoteSocketAddress().toString()));
         try {
             var scanner = new Scanner(socket.getInputStream());
             while (!Thread.currentThread().isInterrupted() && !socket.isClosed()) {
                 var rawData = scanner.next();
-                var message = new Message(socket.getRemoteSocketAddress().toString(), Utils.readObject(rawData));
-                queue.add(message);
+                var data = Utils.readObject(rawData).accept(new DataVisitor<Data>() {
+                    @Override
+                    public AppendEntries accept(AppendEntries data) {
+                        return data;
+                    }
+                    @Override
+                    public VoteResponse accept(VoteResponse data) {
+                        return data;
+                    }
+                    @Override
+                    public VoteRequest accept(VoteRequest data) {
+                        return data;
+                    }
+                    @Override
+                    public AppendEntries accept(InitMessage data) {
+                        resolvedPort = data.targetPort;
+                        return null;
+                    }
+                });
+                if(data != null) {
+                    var message = new Message(resolvedPort, data);
+                    queue.add(message);
+                } else {
+                    logger.info(Utils.formatSuccess("NEW CLIENT %s", resolvedPort));
+                }
             }
         } catch (Exception ignore) {}
         finally {
             isDead = true;
-            logger.info(Utils.formatError("DISCONNECTED %s", socket.getRemoteSocketAddress().toString()));
+            logger.info(Utils.formatError("DISCONNECTED %s", resolvedPort));
         }
     }
 
-    public void write(Data data) {
+    public void send(Data data) {
         try {
             writer.write(Utils.writeObject(data).concat(" "));
             writer.flush();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (IOException ignore) {
+            isDead = true;
         }
     }
 
@@ -53,7 +76,11 @@ public class ServerConnection extends Thread {
         return isDead;
     }
 
-    public Integer getPort(){
+    public Integer getLocalPort(){
         return socket.getPort();
+    }
+
+    public Integer getResolvedPort(){
+        return resolvedPort;
     }
 }

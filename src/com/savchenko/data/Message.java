@@ -1,8 +1,8 @@
 package com.savchenko.data;
 
-public record Message(String source, Data data) {
+public record Message(Integer source, Data data) {
     @Override
     public String toString() {
-        return "source='" + source + "' " + data;
+        return source + " " + data;
     }
 }

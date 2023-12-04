@@ -1,5 +1,6 @@
 package com.savchenko.connection;
 
+import com.savchenko.data.InitMessage;
 import com.savchenko.data.Message;
 
 import java.io.IOException;
@@ -28,6 +29,7 @@ public class Server implements Runnable {
                 var socket = serverSocket.accept();
                 var connection = new ServerConnection(socket, queue);
                 connection.start();
+                connection.send(new InitMessage(serverSocket.getLocalPort()));
                 connections.add(connection);
             }
         } catch (IOException e) {
