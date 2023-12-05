@@ -1,6 +1,6 @@
 package com.savchenko.connection;
 
-import com.savchenko.Utils;
+import com.savchenko.suportive.Utils;
 import com.savchenko.data.*;
 
 import java.io.IOException;
@@ -33,6 +33,10 @@ public class ServerConnection extends Thread {
                 var data = Utils.readObject(rawData).accept(new DataVisitor<Data>() {
                     @Override
                     public AppendEntries accept(AppendEntries data) {
+                        return data;
+                    }
+                    @Override
+                    public Data accept(AppendEntriesResult data) {
                         return data;
                     }
                     @Override

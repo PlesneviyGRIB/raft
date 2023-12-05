@@ -1,6 +1,7 @@
 package com.savchenko.connection;
 
 import com.savchenko.Constants;
+import com.savchenko.data.Data;
 import com.savchenko.data.InitMessage;
 import com.savchenko.data.Message;
 
@@ -18,8 +19,11 @@ public class ConnectionManager implements Runnable {
     private Collection<ServerConnection> connections = Collections.synchronizedCollection(new ArrayList<>());
     private List<Integer> deadConnections;
 
+    private List<Integer> slaves;
+
     public ConnectionManager(Integer port, List<Integer> slaves, BlockingQueue<Message> queue) throws IOException {
         this.queue = queue;
+        this.slaves = slaves;
         server = new Server(port, queue);
         this.deadConnections = slaves;
     }
@@ -70,8 +74,20 @@ public class ConnectionManager implements Runnable {
         return Stream.of(server.getConnections(), connections).flatMap(Collection::stream).filter(c -> c.getResolvedPort().equals(port)).findFirst();
     }
 
+    public void send(Integer port, Data data) {
+        getConnection(port).ifPresent(c -> c.send(data));
+    }
+
+    public void sendToAll(Data data) {
+        getConnections().stream().filter(c -> !getPort().equals(c.getLocalPort())).forEach(c -> c.send(data));
+    }
+
     public Integer getPort(){
         return server.getPort();
+    }
+
+    public List<Integer> getSlavesIds(){
+        return slaves;
     }
 
 }

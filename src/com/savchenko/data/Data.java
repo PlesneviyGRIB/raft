@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 @JsonSubTypes({
         @JsonSubTypes.Type(value = InitMessage.class, name = "InitMessage"),
         @JsonSubTypes.Type(value = AppendEntries.class, name = "AppendEntries"),
+        @JsonSubTypes.Type(value = AppendEntriesResult.class, name = "AppendEntriesResult"),
         @JsonSubTypes.Type(value = VoteRequest.class, name = "VoteRequest"),
         @JsonSubTypes.Type(value = VoteResponse.class, name = "VoteResponse"),
 })

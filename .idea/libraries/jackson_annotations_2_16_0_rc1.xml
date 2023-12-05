@@ -2,8 +2,6 @@
   <library name="jackson-annotations-2.16.0-rc1">
     <CLASSES>
       <root url="jar://$PROJECT_DIR$/../jars/jackson-annotations-2.16.0-rc1.jar!/" />
-      <root url="jar://$PROJECT_DIR$/../jars/jackson-core-2.16.0-rc1.jar!/" />
-      <root url="jar://$PROJECT_DIR$/../jars/jackson-databind-2.16.0-rc1.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

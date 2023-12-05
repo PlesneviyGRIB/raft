@@ -1,11 +1,11 @@
 package com.savchenko.data;
 
-import com.savchenko.Utils;
+import com.savchenko.suportive.Utils;
 
 public class VoteResponse implements Data {
-    public Long term;
+    public Integer term;
     public boolean voteGranted;
-    public VoteResponse(Long term, boolean voteGranted) {
+    public VoteResponse(Integer term, boolean voteGranted) {
         this.term = term;
         this.voteGranted = voteGranted;
     }

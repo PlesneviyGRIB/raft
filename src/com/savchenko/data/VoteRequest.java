@@ -1,14 +1,14 @@
 package com.savchenko.data;
 
-import com.savchenko.Utils;
+import com.savchenko.suportive.Utils;
 
 public class VoteRequest implements Data {
-    public Long term;
+    public Integer term;
     public Integer candidateId;
-    public Long lastLogIndex;
-    public Long lastLogTerm;
+    public Integer lastLogIndex;
+    public Integer lastLogTerm;
 
-    public VoteRequest(Long term, Integer candidateId, Long lastLogIndex, Long lastLogTerm) {
+    public VoteRequest(Integer term, Integer candidateId, Integer lastLogIndex, Integer lastLogTerm) {
         this.term = term;
         this.candidateId = candidateId;
         this.lastLogIndex = lastLogIndex;
