@@ -25,9 +25,6 @@ public class Node {
 //    private StateMachine stateMachine = new StateMachine();
 //    private Long commitIndex = 0L;
 //    private Integer lastApplied = 0;
-//    private Map<Integer, Integer> nextIndex;
-//    private Map<Integer, Integer> matchIndex;
-
     public Node(Integer port, List<Integer> slaves) throws IOException {
         queue = new LinkedBlockingQueue<>();
         connectionManager = new ConnectionManager(port, slaves, queue);
@@ -108,86 +105,117 @@ public class Node {
     }
 
     private void beCandidate() throws InterruptedException {
-        var round = new Object() {
-            final HashMap<Integer, Boolean> votes = new HashMap<>(Map.of(connectionManager.getPort(), true));
-            final Long time = System.currentTimeMillis();
-        };
-
-        var pair = log.getStateForVoting();
-        var voteRequest = new VoteRequest(nodeTerm.Increment(), connectionManager.getPort(), pair.getLeft(), pair.getRight());
-        nodeTerm.setVoteFor(connectionManager.getPort());
-        connectionManager.sendToAll(voteRequest);
-
         while (state == NodeState.CANDIDATE) {
-            var message = Optional
-                    .ofNullable(queue.poll(Constants.CANDIDATE_TIMEOUT_DURATION, TimeUnit.MILLISECONDS))
-                    .orElse(new Message(connectionManager.getPort(), new Data() {}));
-            var approved = message.data().accept(new DataVisitor<Boolean>() {
-                @Override
-                public Boolean accept(AppendEntries data) {
-                    if(data.term >= nodeTerm.term()){
-                        queue.add(message);
+            var round = new Object() {
+                final HashMap<Integer, Boolean> votes = new HashMap<>(Map.of(connectionManager.getPort(), true));
+                final Long time = System.currentTimeMillis();
+                boolean requireReVote = false;
+            };
+
+            var pair = log.getStateForVoting();
+            var voteRequest = new VoteRequest(nodeTerm.Increment(), connectionManager.getPort(), pair.getLeft(), pair.getRight());
+            nodeTerm.setVoteFor(connectionManager.getPort());
+            connectionManager.sendToAll(voteRequest);
+
+            while (!round.requireReVote && state == NodeState.CANDIDATE) {
+                var message = Optional
+                        .ofNullable(queue.poll(Constants.CANDIDATE_TIMEOUT_DURATION, TimeUnit.MILLISECONDS))
+                        .orElse(new Message(connectionManager.getPort(), new Data() {
+                        }));
+                var approved = message.data().accept(new DataVisitor<Boolean>() {
+                    @Override
+                    public Boolean accept(AppendEntries data) {
+                        if (data.term >= nodeTerm.term()) {
+                            queue.add(message);
+                        }
+                        updateTerm(data.term);
+                        return null;
                     }
-                    updateTerm(data.term);
-                    return null;
-                }
 
-                @Override
-                public Boolean accept(AppendEntriesResult data) {
-                    throw new UnexpectedMessageException();
-                }
+                    @Override
+                    public Boolean accept(AppendEntriesResult data) {
+                        throw new UnexpectedMessageException();
+                    }
 
-                @Override
-                public Boolean accept(InitMessage data) {
-                    throw new UnexpectedMessageException();
-                }
+                    @Override
+                    public Boolean accept(InitMessage data) {
+                        throw new UnexpectedMessageException();
+                    }
 
-                @Override
-                public Boolean accept(VoteRequest data) {
-                    var response = processVoteRequest(data);
-                    connectionManager.send(message.source(), response);
-                    updateTerm(data.term);
-                    return null;
-                }
+                    @Override
+                    public Boolean accept(VoteRequest data) {
+                        var response = processVoteRequest(data);
+                        connectionManager.send(message.source(), response);
+                        updateTerm(data.term);
+                        return null;
+                    }
 
-                @Override
-                public Boolean accept(VoteResponse data) {
-                    return data.voteGranted;
-                }
-            });
+                    @Override
+                    public Boolean accept(VoteResponse data) {
+                        return data.voteGranted;
+                    }
+                });
 
-            Optional.ofNullable(approved).ifPresent(v -> round.votes.put(message.source(), v));
-            var approvedCount = round.votes.entrySet().stream().filter(Map.Entry::getValue).count();
-            var totalCount = connectionManager.getSlavesIds().size() + 1;
+                Optional.ofNullable(approved).ifPresent(v -> round.votes.put(message.source(), v));
+                var approvedCount = round.votes.entrySet().stream().filter(Map.Entry::getValue).count();
+                var totalCount = connectionManager.getSlavesIds().size() + 1;
 
-            if (approvedCount > totalCount / 2) {
-                state = NodeState.LEADER;
-            } else {
-                if (round.votes.entrySet().size() == totalCount) {
-                    state = NodeState.FOLLOWER;
-                }
-                if (round.time + Utils.randomize(Constants.CANDIDATE_TIMEOUT_DURATION, 0.2) < System.currentTimeMillis()) {
-                    logger.info(Utils.formatError("REVOTE BY TIMEOUT. Current term [%S]. Votes %s", nodeTerm.term(), approvedCount));
-                    beCandidate();
+                if (approvedCount > totalCount / 2) {
+                    state = NodeState.LEADER;
+                } else {
+                    if (round.votes.entrySet().size() == totalCount) {
+                        state = NodeState.FOLLOWER;
+                    }
+                    if (round.time + Utils.randomize(Constants.CANDIDATE_TIMEOUT_DURATION, 0.2) < System.currentTimeMillis()) {
+                        logger.info(Utils.formatError("REVOTE BY TIMEOUT. Current term [%S]. Votes %s", nodeTerm.term(), approvedCount));
+                        round.requireReVote = true;
+                    }
                 }
             }
         }
     }
 
-    private void beLeader() {
+    private void beLeader() throws InterruptedException {
+        var controller = new SlavesController(log, connectionManager.getSlavesIds(), connectionManager.getPort());
+
         while (state == NodeState.LEADER) {
             connectionManager
                     .getConnections()
-                    .forEach(c -> c.send(new AppendEntries(nodeTerm.term(), connectionManager.getPort(), 0, null, List.of(), 0)));
-            sleep();
-        }
-    }
+                    .forEach(c -> c.send(controller.newAppendEntries(c.getResolvedPort(), nodeTerm.term())));
 
-    private void sleep() {
-        try {
-            TimeUnit.MILLISECONDS.sleep(Constants.NODE_SLEEP_TIMEOUT);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            var timeout = System.currentTimeMillis() + Constants.APPEND_ENTRIES_TIMEOUT;
+
+            while (timeout < System.currentTimeMillis()){
+                Optional
+                        .ofNullable(queue.poll(20, TimeUnit.MILLISECONDS))
+                        .ifPresent(m -> m.data().accept(new DataVisitor<Void>() {
+                            @Override
+                            public Void accept(InitMessage data) {
+                                throw new UnexpectedMessageException();
+                            }
+
+                            @Override
+                            public Void accept(AppendEntries data) {
+                                throw new UnexpectedMessageException();
+                            }
+
+                            @Override
+                            public Void accept(AppendEntriesResult data) {
+                                controller.processResponse(m.source(), data);
+                                return null;
+                            }
+
+                            @Override
+                            public Void accept(VoteRequest data) {
+                                throw new UnexpectedMessageException();
+                            }
+
+                            @Override
+                            public Void accept(VoteResponse data) {
+                                throw new UnexpectedMessageException();
+                            }
+                        }));
+            }
         }
     }
 
@@ -198,7 +226,7 @@ public class Node {
         }
     }
 
-    private VoteResponse processVoteRequest(VoteRequest request){
+    private VoteResponse processVoteRequest(VoteRequest request) {
         var voteGranted = nodeTerm.canVote() && request.term >= nodeTerm.term() && log.isOlderThan(request.lastLogIndex, request.lastLogTerm);
         if (voteGranted) {
             nodeTerm.setVoteFor(request.candidateId);

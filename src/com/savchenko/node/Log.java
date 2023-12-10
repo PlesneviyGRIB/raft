@@ -41,4 +41,8 @@ public class Log {
         var entry = log.get(index);
         return log.size() == index + 1 && entry.getKey() <= term;
     }
+
+    public List<LogEntry> get(){
+        return new ArrayList<>(log);
+    }
 }

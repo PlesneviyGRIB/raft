@@ -1,7 +1,7 @@
 <component name="libraryTable">
-  <library name="commons-lang3-3.14.0">
+  <library name="commons-lang3-3.13.0">
     <CLASSES>
-      <root url="jar://$PROJECT_DIR$/../jars/commons-lang3-3.14.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../jars/commons-lang3-3.13.0.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />
