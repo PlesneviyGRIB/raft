@@ -16,4 +16,8 @@ public class StateMachine {
     public void commit(LogEntry entry){
         log.append(log.lastIndex(), List.of(entry));
     }
+
+    public Log getLog(){
+        return log;
+    }
 }

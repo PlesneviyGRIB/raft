@@ -1,6 +1,9 @@
-package com.savchenko.data;
+package com.savchenko.data.communication;
 
-public class AppendEntriesResult implements Data {
+import com.savchenko.data.Data;
+import com.savchenko.data.visitor.DataVisitor;
+
+public class AppendEntriesResult extends Data {
     public Integer term;
     public boolean success;
 

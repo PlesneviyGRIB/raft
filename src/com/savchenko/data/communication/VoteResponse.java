@@ -1,8 +1,10 @@
-package com.savchenko.data;
+package com.savchenko.data.communication;
 
+import com.savchenko.data.Data;
+import com.savchenko.data.visitor.DataVisitor;
 import com.savchenko.suportive.Utils;
 
-public class VoteResponse implements Data {
+public class VoteResponse extends Data {
     public Integer term;
     public boolean voteGranted;
     public VoteResponse(Integer term, boolean voteGranted) {
@@ -16,10 +18,5 @@ public class VoteResponse implements Data {
     @Override
     public <R> R accept(DataVisitor<R> visitor) {
         return visitor.accept(this);
-    }
-
-    @Override
-    public String toString() {
-        return Utils.writeObject(this);
     }
 }

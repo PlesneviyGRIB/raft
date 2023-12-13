@@ -1,7 +1,7 @@
 package com.savchenko.node;
 
-import com.savchenko.data.AppendEntries;
-import com.savchenko.data.AppendEntriesResult;
+import com.savchenko.data.communication.AppendEntries;
+import com.savchenko.data.communication.AppendEntriesResult;
 import com.savchenko.data.LogEntry;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -32,7 +32,8 @@ public class SlavesController {
     public AppendEntries newAppendEntries(Integer slaveId, Integer term) {
         var slaveIndex = nextIndexes.get(slaveId);
         var bound = log.lastIndex();
-        var entries = log.lastIndex() >= slaveIndex ? log.get().subList(slaveIndex, bound) : List.<LogEntry>of();
+        //var entries = log.lastIndex() >= slaveIndex ? log.get().subList(slaveIndex, bound) : List.<LogEntry>of();
+        var entries = List.<LogEntry>of();
         pending.put(slaveId, Pair.of(bound, matchIndexes.get(slaveId)));
         return new AppendEntries(term, leaderId, 0, null, entries, 0);
     }

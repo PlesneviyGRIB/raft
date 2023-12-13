@@ -4,7 +4,7 @@ import com.savchenko.node.Node;
 
 import java.util.Arrays;
 
-public class Main {
+public class ServerMain {
     public static void main(String[] args) throws Exception {
         var ports = Arrays.stream(args).map(Integer::parseInt).toList();
 

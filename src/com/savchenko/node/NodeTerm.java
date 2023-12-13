@@ -1,8 +1,11 @@
 package com.savchenko.node;
 
+import java.util.Objects;
+
 public class NodeTerm {
     private Integer term = 0;
     private Integer voteFor = null;
+    private Integer leaderId = null;
     private Boolean alreadyVoted = false;
 
     public Integer Increment() {
@@ -41,4 +44,14 @@ public class NodeTerm {
         return !alreadyVoted;
     }
 
+    public Integer getLeaderId() {
+        return leaderId;
+    }
+
+    public void setLeaderId(Integer leaderId) {
+        if(Objects.nonNull(this.leaderId) && !this.leaderId.equals(leaderId)){
+            throw new RuntimeException("Several leaders in single term!");
+        }
+        this.leaderId = leaderId;
+    }
 }

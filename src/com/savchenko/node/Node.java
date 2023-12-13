@@ -4,6 +4,9 @@ import com.savchenko.Constants;
 import com.savchenko.connection.ConnectionManager;
 import com.savchenko.connection.ServerConnection;
 import com.savchenko.data.*;
+import com.savchenko.data.communication.*;
+import com.savchenko.data.visitor.DataTraversal;
+import com.savchenko.data.visitor.DataVisitor;
 import com.savchenko.suportive.UnexpectedMessageException;
 import com.savchenko.suportive.Utils;
 
@@ -22,7 +25,7 @@ public class Node {
 
     private NodeTerm nodeTerm = new NodeTerm();
     private Log log = new Log();
-//    private StateMachine stateMachine = new StateMachine();
+    private StateMachine stateMachine = new StateMachine();
 //    private Long commitIndex = 0L;
 //    private Integer lastApplied = 0;
     public Node(Integer port, List<Integer> slaves) throws IOException {
@@ -65,26 +68,23 @@ public class Node {
                     .ofNullable(queue.poll(Utils.randomize(Constants.ELECTION_TIMEOUT, 0.2), TimeUnit.MILLISECONDS))
                     .ifPresentOrElse(message -> {
                         System.out.println(message);
-                        message.data().accept(new DataVisitor<Void>() {
+                        message.data().accept(new DataTraversal() {
                             @Override
                             public Void accept(AppendEntries data) {
+                                nodeTerm.setLeaderId(data.leaderId);
                                 var result = new AppendEntriesResult();
                                 var entry = log.getByIndex(data.prevLogIndex);
                                 result.success = data.term >= nodeTerm.term() && Objects.nonNull(entry) && entry.getKey().equals(data.prevLogTerm);
                                 result.term = nodeTerm.term();
-                                connectionManager.send(data.leaderId, result);
+                                connectionManager.send(nodeTerm.getLeaderId(), result);
                                 updateTerm(data.term);
                                 return null;
                             }
 
                             @Override
-                            public Void accept(AppendEntriesResult data) {
-                                throw new UnexpectedMessageException();
-                            }
-
-                            @Override
-                            public Void accept(InitMessage data) {
-                                throw new UnexpectedMessageException();
+                            public Void accept(ClientMessage data) {
+                                connectionManager.send(message.source(), new RedirectMessage(nodeTerm.getLeaderId()));
+                                return null;
                             }
 
                             @Override
@@ -92,11 +92,6 @@ public class Node {
                                 var response = processVoteRequest(data);
                                 connectionManager.send(message.source(), response);
                                 updateTerm(data.term);
-                                return null;
-                            }
-
-                            @Override
-                            public Void accept(VoteResponse data) {
                                 return null;
                             }
                         });
@@ -118,45 +113,36 @@ public class Node {
             connectionManager.sendToAll(voteRequest);
 
             while (!round.requireReVote && state == NodeState.CANDIDATE) {
-                var message = Optional
-                        .ofNullable(queue.poll(Constants.CANDIDATE_TIMEOUT_DURATION, TimeUnit.MILLISECONDS))
-                        .orElse(new Message(connectionManager.getPort(), new Data() {
-                        }));
-                var approved = message.data().accept(new DataVisitor<Boolean>() {
+                var messageOpt = Optional.ofNullable(queue.poll(Constants.CANDIDATE_TIMEOUT_DURATION, TimeUnit.MILLISECONDS));
+                var result = new Object(){
+                    public boolean approved = false;
+                };
+                messageOpt.ifPresent(m -> m.data().accept(new DataTraversal() {
                     @Override
-                    public Boolean accept(AppendEntries data) {
+                    public Void accept(AppendEntries data) {
                         if (data.term >= nodeTerm.term()) {
-                            queue.add(message);
+                            queue.add(m);
                         }
                         updateTerm(data.term);
                         return null;
                     }
 
                     @Override
-                    public Boolean accept(AppendEntriesResult data) {
-                        throw new UnexpectedMessageException();
-                    }
-
-                    @Override
-                    public Boolean accept(InitMessage data) {
-                        throw new UnexpectedMessageException();
-                    }
-
-                    @Override
-                    public Boolean accept(VoteRequest data) {
+                    public Void accept(VoteRequest data) {
                         var response = processVoteRequest(data);
-                        connectionManager.send(message.source(), response);
+                        connectionManager.send(m.source(), response);
                         updateTerm(data.term);
                         return null;
                     }
 
                     @Override
-                    public Boolean accept(VoteResponse data) {
-                        return data.voteGranted;
+                    public Void accept(VoteResponse data) {
+                        result.approved = data.voteGranted;
+                        return null;
                     }
-                });
+                }));
 
-                Optional.ofNullable(approved).ifPresent(v -> round.votes.put(message.source(), v));
+                messageOpt.ifPresent(m -> round.votes.put(m.source(), result.approved));
                 var approvedCount = round.votes.entrySet().stream().filter(Map.Entry::getValue).count();
                 var totalCount = connectionManager.getSlavesIds().size() + 1;
 
@@ -180,39 +166,36 @@ public class Node {
 
         while (state == NodeState.LEADER) {
             connectionManager
-                    .getConnections()
+                    .getNodeConnections()
                     .forEach(c -> c.send(controller.newAppendEntries(c.getResolvedPort(), nodeTerm.term())));
 
             var timeout = System.currentTimeMillis() + Constants.APPEND_ENTRIES_TIMEOUT;
 
-            while (timeout < System.currentTimeMillis()){
+            while (timeout > System.currentTimeMillis()){
                 Optional
                         .ofNullable(queue.poll(20, TimeUnit.MILLISECONDS))
-                        .ifPresent(m -> m.data().accept(new DataVisitor<Void>() {
+                        .ifPresent(m -> m.data().accept(new DataTraversal() {
+
                             @Override
-                            public Void accept(InitMessage data) {
-                                throw new UnexpectedMessageException();
+                            public Void accept(ClientMessage data) {
+                                System.out.println(data);
+                                return null;
                             }
 
                             @Override
-                            public Void accept(AppendEntries data) {
-                                throw new UnexpectedMessageException();
+                            public Void accept(StateRequest data) {
+                                var list = stateMachine.getLog().get().stream().map(LogEntry::getValue).toList();
+                                var state = Optional.ofNullable(data.count)
+                                        .map(c -> list.subList(list.size() - c, list.size()))
+                                        .orElse(list);
+                                connectionManager.send(m.source(), new StateResponse(state));
+                                return null;
                             }
 
                             @Override
                             public Void accept(AppendEntriesResult data) {
                                 controller.processResponse(m.source(), data);
                                 return null;
-                            }
-
-                            @Override
-                            public Void accept(VoteRequest data) {
-                                throw new UnexpectedMessageException();
-                            }
-
-                            @Override
-                            public Void accept(VoteResponse data) {
-                                throw new UnexpectedMessageException();
                             }
                         }));
             }

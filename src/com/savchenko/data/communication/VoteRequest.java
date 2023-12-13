@@ -1,8 +1,10 @@
-package com.savchenko.data;
+package com.savchenko.data.communication;
 
+import com.savchenko.data.Data;
+import com.savchenko.data.visitor.DataVisitor;
 import com.savchenko.suportive.Utils;
 
-public class VoteRequest implements Data {
+public class VoteRequest extends Data {
     public Integer term;
     public Integer candidateId;
     public Integer lastLogIndex;
@@ -21,10 +23,5 @@ public class VoteRequest implements Data {
     @Override
     public <R> R accept(DataVisitor<R> visitor) {
         return visitor.accept(this);
-    }
-
-    @Override
-    public String toString() {
-        return Utils.writeObject(this);
     }
 }

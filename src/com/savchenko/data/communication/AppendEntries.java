@@ -1,10 +1,13 @@
-package com.savchenko.data;
+package com.savchenko.data.communication;
 
+import com.savchenko.data.Data;
+import com.savchenko.data.LogEntry;
+import com.savchenko.data.visitor.DataVisitor;
 import com.savchenko.suportive.Utils;
 
 import java.util.List;
 
-public class AppendEntries implements Data {
+public class AppendEntries extends Data {
     public Integer term;
     public Integer leaderId;
     public Integer prevLogIndex;
@@ -28,8 +31,4 @@ public class AppendEntries implements Data {
         return visitor.accept(this);
     }
 
-    @Override
-    public String toString() {
-        return Utils.writeObject(this);
-    }
 }
