@@ -39,11 +39,10 @@ public class RaftClient implements Runnable {
 
     private void createConnection(Integer port) {
         try {
+            Optional.ofNullable(connectionRef.get()).ifPresent(ServerConnection::kill);
             var socket = new Socket(Constants.HOST, port);
             var connection = ServerConnection.startNew(socket, queue, socket.getLocalPort(), ConnectionType.CLIENT);
-            new Thread(connection).start();
-            Optional.ofNullable(connectionRef.getAndSet(connection)).ifPresent(ServerConnection::kill);
-            logger.info(Utils.formatSuccess("CONNECTED TO [%s]", port));
+            connectionRef.set(connection);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -55,11 +54,12 @@ public class RaftClient implements Runnable {
             createConnection(8080);
             while (!Thread.currentThread().isInterrupted()) {
                 queue.take().data().accept(new DataUnexpected() {
-
                     @Override
                     public Void accept(RedirectMessage data) {
-                        logger.info(Utils.formatError("REDIRECTED FROM [%s] TO [%s]", connectionRef.get().getResolvedPort(), data.leaderId));
-                        createConnection(data.leaderId);
+                        if(data.leaderId != null) {
+                            logger.info(Utils.formatError("REDIRECTED FROM [%s] TO [%s]", connectionRef.get().getResolvedPort(), data.leaderId));
+                            createConnection(data.leaderId);
+                        }
                         return null;
                     }
 

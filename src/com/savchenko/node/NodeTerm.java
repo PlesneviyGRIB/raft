@@ -11,6 +11,7 @@ public class NodeTerm {
     public Integer Increment() {
         alreadyVoted = false;
         voteFor = null;
+        leaderId = null;
         return ++term;
     }
 
@@ -21,6 +22,7 @@ public class NodeTerm {
         term = newTerm;
         alreadyVoted = false;
         voteFor = null;
+        leaderId = null;
         return term;
     }
 

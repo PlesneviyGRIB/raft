@@ -3,11 +3,10 @@ package com.savchenko.node;
 import com.savchenko.Constants;
 import com.savchenko.connection.ConnectionManager;
 import com.savchenko.connection.ServerConnection;
-import com.savchenko.data.*;
+import com.savchenko.data.LogEntry;
+import com.savchenko.data.Message;
 import com.savchenko.data.communication.*;
 import com.savchenko.data.visitor.DataTraversal;
-import com.savchenko.data.visitor.DataVisitor;
-import com.savchenko.suportive.UnexpectedMessageException;
 import com.savchenko.suportive.Utils;
 
 import java.io.IOException;
@@ -26,7 +25,8 @@ public class Node {
     private NodeTerm nodeTerm = new NodeTerm();
     private Log log = new Log();
     private StateMachine stateMachine = new StateMachine();
-//    private Long commitIndex = 0L;
+
+    //    private Long commitIndex = 0L;
 //    private Integer lastApplied = 0;
     public Node(Integer port, List<Integer> slaves) throws IOException {
         queue = new LinkedBlockingQueue<>();
@@ -36,9 +36,9 @@ public class Node {
     public void start() {
         new Thread(connectionManager).start();
         logger.info(Utils.formatSuccess("""
-                
-                █▄ █ █▀█ █▀▄ █▀▀
-                █ ▀█ █▄█ █▄▀ ██▄ [%s]""",
+                                        
+                        █▄ █ █▀█ █▀▄ █▀▀
+                        █ ▀█ █▄█ █▄▀ ██▄ [%s]""",
                 connectionManager.getPort()));
         try {
             while (true) {
@@ -66,36 +66,35 @@ public class Node {
         while (state == NodeState.FOLLOWER) {
             Optional
                     .ofNullable(queue.poll(Utils.randomize(Constants.ELECTION_TIMEOUT, 0.2), TimeUnit.MILLISECONDS))
-                    .ifPresentOrElse(message -> {
-                        System.out.println(message);
-                        message.data().accept(new DataTraversal() {
-                            @Override
-                            public Void accept(AppendEntries data) {
-                                nodeTerm.setLeaderId(data.leaderId);
-                                var result = new AppendEntriesResult();
-                                var entry = log.getByIndex(data.prevLogIndex);
-                                result.success = data.term >= nodeTerm.term() && Objects.nonNull(entry) && entry.getKey().equals(data.prevLogTerm);
-                                result.term = nodeTerm.term();
-                                connectionManager.send(nodeTerm.getLeaderId(), result);
-                                updateTerm(data.term);
-                                return null;
-                            }
+                    .ifPresentOrElse(m -> m.data().accept(new DataTraversal() {
+                        @Override
+                        public Void accept(AppendEntries data) {
+                            System.out.println(m);
 
-                            @Override
-                            public Void accept(ClientMessage data) {
-                                connectionManager.send(message.source(), new RedirectMessage(nodeTerm.getLeaderId()));
-                                return null;
-                            }
+                            var result = new AppendEntriesResult();
+                            var entry = log.getByIndex(data.prevLogIndex);
+                            result.success = data.term >= nodeTerm.term() && Objects.nonNull(entry) && entry.getKey().equals(data.prevLogTerm);
+                            result.term = nodeTerm.term();
+                            connectionManager.send(nodeTerm.getLeaderId(), result);
+                            updateTerm(data.term);
+                            nodeTerm.setLeaderId(data.leaderId);
+                            return null;
+                        }
 
-                            @Override
-                            public Void accept(VoteRequest data) {
-                                var response = processVoteRequest(data);
-                                connectionManager.send(message.source(), response);
-                                updateTerm(data.term);
-                                return null;
-                            }
-                        });
-                    }, () -> state = NodeState.CANDIDATE);
+                        @Override
+                        public Void accept(ClientMessage data) {
+                            connectionManager.send(m.source(), new RedirectMessage(nodeTerm.getLeaderId()));
+                            return null;
+                        }
+
+                        @Override
+                        public Void accept(VoteRequest data) {
+                            var response = processVoteRequest(data);
+                            connectionManager.send(m.source(), response);
+                            updateTerm(data.term);
+                            return null;
+                        }
+                    }), () -> state = NodeState.CANDIDATE);
         }
     }
 
@@ -110,37 +109,44 @@ public class Node {
             var pair = log.getStateForVoting();
             var voteRequest = new VoteRequest(nodeTerm.Increment(), connectionManager.getPort(), pair.getLeft(), pair.getRight());
             nodeTerm.setVoteFor(connectionManager.getPort());
-            connectionManager.sendToAll(voteRequest);
+            connectionManager.sendToOtherNodes(voteRequest);
 
             while (!round.requireReVote && state == NodeState.CANDIDATE) {
                 var messageOpt = Optional.ofNullable(queue.poll(Constants.CANDIDATE_TIMEOUT_DURATION, TimeUnit.MILLISECONDS));
-                var result = new Object(){
+                var result = new Object() {
                     public boolean approved = false;
                 };
                 messageOpt.ifPresent(m -> m.data().accept(new DataTraversal() {
-                    @Override
-                    public Void accept(AppendEntries data) {
-                        if (data.term >= nodeTerm.term()) {
-                            queue.add(m);
-                        }
-                        updateTerm(data.term);
-                        return null;
-                    }
+                            @Override
+                            public Void accept(AppendEntries data) {
+                                if (data.term >= nodeTerm.term()) {
+                                    queue.add(m);
+                                }
+                                updateTerm(data.term);
+                                return null;
+                            }
 
-                    @Override
-                    public Void accept(VoteRequest data) {
-                        var response = processVoteRequest(data);
-                        connectionManager.send(m.source(), response);
-                        updateTerm(data.term);
-                        return null;
-                    }
+                            @Override
+                            public Void accept(VoteRequest data) {
+                                var response = processVoteRequest(data);
+                                connectionManager.send(m.source(), response);
+                                updateTerm(data.term);
+                                return null;
+                            }
 
-                    @Override
-                    public Void accept(VoteResponse data) {
-                        result.approved = data.voteGranted;
-                        return null;
-                    }
-                }));
+                            @Override
+                            public Void accept(VoteResponse data) {
+                                result.approved = data.voteGranted;
+                                return null;
+                            }
+
+                            @Override
+                            public Void accept(ClientMessage data) {
+                                connectionManager.send(m.source(), new RedirectMessage(nodeTerm.getLeaderId()));
+                                return null;
+                            }
+                        })
+                );
 
                 messageOpt.ifPresent(m -> round.votes.put(m.source(), result.approved));
                 var approvedCount = round.votes.entrySet().stream().filter(Map.Entry::getValue).count();
@@ -171,14 +177,13 @@ public class Node {
 
             var timeout = System.currentTimeMillis() + Constants.APPEND_ENTRIES_TIMEOUT;
 
-            while (timeout > System.currentTimeMillis()){
+            while (timeout > System.currentTimeMillis()) {
                 Optional
                         .ofNullable(queue.poll(20, TimeUnit.MILLISECONDS))
                         .ifPresent(m -> m.data().accept(new DataTraversal() {
-
                             @Override
                             public Void accept(ClientMessage data) {
-                                System.out.println(data);
+                                System.out.println(m);
                                 return null;
                             }
 

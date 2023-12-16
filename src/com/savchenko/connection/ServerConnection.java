@@ -35,7 +35,7 @@ public class ServerConnection extends Thread {
             var scanner = new Scanner(socket.getInputStream());
             // handshake
             resolvedConnection = (InitMessage) Utils.readObject(scanner.next());
-            logger.info(Utils.formatSuccess("NEW CLIENT %s", resolvedConnection.port));
+            logger.info(Utils.formatSuccess("NEW %s [%s]", resolvedConnection.type, resolvedConnection.port));
 
             while (!Thread.currentThread().isInterrupted() && !socket.isClosed()) {
                 var rawData = scanner.next();
@@ -45,7 +45,7 @@ public class ServerConnection extends Thread {
         } catch (Exception ignore) {
         } finally {
             kill();
-            logger.info(Utils.formatError("DISCONNECTED %s", resolvedConnection.port));
+            logger.info(Utils.formatError("%s DISCONNECTED %s", resolvedConnection.type, resolvedConnection.port));
         }
     }
 
@@ -74,6 +74,10 @@ public class ServerConnection extends Thread {
         return resolvedConnection.type;
     }
 
+    public boolean isReady() {
+        return resolvedConnection != null;
+    }
+
     public void kill() {
         try {
             socket.close();
@@ -84,8 +88,8 @@ public class ServerConnection extends Thread {
 
     public static ServerConnection startNew(Socket socket, BlockingQueue<Message> queue, Integer localPort, ConnectionType connectionType) {
         var connection = new ServerConnection(socket, queue);
-        connection.send(new InitMessage(localPort, connectionType));
         connection.start();
+        connection.send(new InitMessage(localPort, connectionType));
         return connection;
     }
 }

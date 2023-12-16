@@ -63,29 +63,28 @@ public class ConnectionManager implements Runnable {
         connections = preservedConnections;
     }
 
+    private Stream<ServerConnection> readyConnections() {
+        return Stream.of(server.getConnections(), connections).flatMap(Collection::stream).filter(ServerConnection::isReady);
+    }
+
+
     public List<ServerConnection> getNodeConnections() {
-        return Stream.of(server.getConnections(), connections)
-                .flatMap(Collection::stream)
-                .filter(c -> c.getType().equals(ConnectionType.NODE))
-                .toList();
+        return readyConnections().filter(c -> c.getType().equals(ConnectionType.NODE)).toList();
     }
 
     public List<ServerConnection> getClientConnections() {
-        return Stream.of(server.getConnections(), connections)
-                .flatMap(Collection::stream)
-                .filter(c -> c.getType().equals(ConnectionType.CLIENT))
-                .toList();
+        return readyConnections().filter(c -> c.getType().equals(ConnectionType.CLIENT)).toList();
     }
 
     public Optional<ServerConnection> getConnection(Integer port) {
-        return Stream.of(server.getConnections(), connections).flatMap(Collection::stream).filter(c -> c.getResolvedPort().equals(port)).findFirst();
+        return readyConnections().filter(c -> c.getResolvedPort().equals(port)).findFirst();
     }
 
     public void send(Integer port, Data data) {
         getConnection(port).ifPresent(c -> c.send(data));
     }
 
-    public void sendToAll(Data data) {
+    public void sendToOtherNodes(Data data) {
         getNodeConnections().stream().filter(c -> !getPort().equals(c.getLocalPort())).forEach(c -> c.send(data));
     }
 
