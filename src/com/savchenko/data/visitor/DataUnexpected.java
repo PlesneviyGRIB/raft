@@ -21,7 +21,7 @@ public interface DataUnexpected extends DataTraversal {
     };
 
     @Override
-    default Void accept(StateResponse data){
+    default Void accept(Response data){
         throw new UnexpectedMessageException();
     };
 

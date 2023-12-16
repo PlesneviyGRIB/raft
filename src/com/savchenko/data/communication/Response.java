@@ -2,16 +2,14 @@ package com.savchenko.data.communication;
 
 import com.savchenko.data.Data;
 import com.savchenko.data.visitor.DataVisitor;
-import com.savchenko.suportive.Utils;
 
 import java.util.List;
 
-public class StateResponse extends Data {
+public class Response extends Data {
     public List<String> values;
-
-    public StateResponse() {
+    public Response() {
     }
-    public StateResponse(List<String> values) {
+    public Response(List<String> values) {
         this.values = values;
     }
 

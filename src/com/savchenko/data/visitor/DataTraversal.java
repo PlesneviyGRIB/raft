@@ -19,7 +19,7 @@ public interface DataTraversal extends DataVisitor<Void> {
     };
 
     @Override
-    default Void accept(StateResponse data){
+    default Void accept(Response data){
         return null;
     };
 

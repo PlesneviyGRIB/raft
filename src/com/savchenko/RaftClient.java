@@ -5,7 +5,7 @@ import com.savchenko.connection.ServerConnection;
 import com.savchenko.data.Message;
 import com.savchenko.data.communication.ClientMessage;
 import com.savchenko.data.communication.RedirectMessage;
-import com.savchenko.data.communication.StateResponse;
+import com.savchenko.data.communication.Response;
 import com.savchenko.data.visitor.DataUnexpected;
 import com.savchenko.suportive.Utils;
 
@@ -64,7 +64,7 @@ public class RaftClient implements Runnable {
                     }
 
                     @Override
-                    public Void accept(StateResponse data) {
+                    public Void accept(Response data) {
                         return null;
                     }
                 });

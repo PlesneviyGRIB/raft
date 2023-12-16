@@ -1,6 +1,7 @@
 package com.savchenko.node;
 
-import com.savchenko.data.LogEntry;
+import com.savchenko.suportive.Entry;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.List;
 
@@ -9,11 +10,11 @@ public class StateMachine {
     public StateMachine(){
     }
 
-    public void commit(List<LogEntry> entries){
+    public void commit(List<Entry> entries){
         log.append(log.lastIndex(), entries);
     }
 
-    public void commit(LogEntry entry){
+    public void commit(Entry entry){
         log.append(log.lastIndex(), List.of(entry));
     }
 

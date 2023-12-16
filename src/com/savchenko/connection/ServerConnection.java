@@ -54,6 +54,7 @@ public class ServerConnection extends Thread {
             writer.write(Utils.writeObject(data).concat(" "));
             writer.flush();
         } catch (IOException ignore) {
+            ignore.printStackTrace();
             kill();
         }
     }

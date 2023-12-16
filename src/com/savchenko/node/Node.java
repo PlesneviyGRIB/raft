@@ -3,11 +3,12 @@ package com.savchenko.node;
 import com.savchenko.Constants;
 import com.savchenko.connection.ConnectionManager;
 import com.savchenko.connection.ServerConnection;
-import com.savchenko.data.LogEntry;
 import com.savchenko.data.Message;
 import com.savchenko.data.communication.*;
 import com.savchenko.data.visitor.DataTraversal;
+import com.savchenko.suportive.Entry;
 import com.savchenko.suportive.Utils;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.IOException;
 import java.util.*;
@@ -17,17 +18,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 public class Node {
-    private static Logger logger = Logger.getLogger(ServerConnection.class.getSimpleName());
+    private static final Logger logger = Logger.getLogger(ServerConnection.class.getSimpleName());
     private final BlockingQueue<Message> queue;
     private final ConnectionManager connectionManager;
+    private final Log log = new Log();
+    private final StateMachine stateMachine = new StateMachine();
+    private final NodeTerm nodeTerm = new NodeTerm();
     private NodeState state = NodeState.FOLLOWER;
 
-    private NodeTerm nodeTerm = new NodeTerm();
-    private Log log = new Log();
-    private StateMachine stateMachine = new StateMachine();
-
-    //    private Long commitIndex = 0L;
-//    private Integer lastApplied = 0;
     public Node(Integer port, List<Integer> slaves) throws IOException {
         queue = new LinkedBlockingQueue<>();
         connectionManager = new ConnectionManager(port, slaves, queue);
@@ -70,10 +68,9 @@ public class Node {
                         @Override
                         public Void accept(AppendEntries data) {
                             System.out.println(m);
-
                             var result = new AppendEntriesResult();
-                            var entry = log.getByIndex(data.prevLogIndex);
-                            result.success = data.term >= nodeTerm.term() && Objects.nonNull(entry) && entry.getKey().equals(data.prevLogTerm);
+                            var entryOpt = log.getByIndex(data.prevLogIndex);
+                            result.success = data.term >= nodeTerm.term() && entryOpt.map(e -> e.term().equals(data.prevLogTerm)).orElse(true);
                             result.term = nodeTerm.term();
                             connectionManager.send(nodeTerm.getLeaderId(), result);
                             updateTerm(data.term);
@@ -183,17 +180,18 @@ public class Node {
                         .ifPresent(m -> m.data().accept(new DataTraversal() {
                             @Override
                             public Void accept(ClientMessage data) {
-                                System.out.println(m);
+                                log.add(nodeTerm.term(), data);
+                                //response -> connectionManager.send(m.source(), response)
                                 return null;
                             }
 
                             @Override
                             public Void accept(StateRequest data) {
-                                var list = stateMachine.getLog().get().stream().map(LogEntry::getValue).toList();
+                                var list = stateMachine.getLog().get().stream().map(Entry::value).toList();
                                 var state = Optional.ofNullable(data.count)
                                         .map(c -> list.subList(list.size() - c, list.size()))
                                         .orElse(list);
-                                connectionManager.send(m.source(), new StateResponse(state));
+                                connectionManager.send(m.source(), new Response(state));
                                 return null;
                             }
 

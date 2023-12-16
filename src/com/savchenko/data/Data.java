@@ -17,7 +17,7 @@ import com.savchenko.suportive.Utils;
         @JsonSubTypes.Type(value = ClientMessage.class, name = "ClientMessage"),
         @JsonSubTypes.Type(value = RedirectMessage.class, name = "RedirectMessage"),
         @JsonSubTypes.Type(value = StateRequest.class, name = "StateRequest"),
-        @JsonSubTypes.Type(value = StateResponse.class, name = "StateResponse"),
+        @JsonSubTypes.Type(value = Response.class, name = "Response"),
 })
 public abstract class Data {
     public abstract <R> R accept(DataVisitor<R> visitor);

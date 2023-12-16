@@ -1,9 +1,11 @@
 package com.savchenko.node;
 
+import com.savchenko.Constants;
 import com.savchenko.data.communication.AppendEntries;
 import com.savchenko.data.communication.AppendEntriesResult;
-import com.savchenko.data.LogEntry;
+import com.savchenko.suportive.Entry;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 
 import java.util.List;
 import java.util.Map;
@@ -31,16 +33,16 @@ public class SlavesController {
 
     public AppendEntries newAppendEntries(Integer slaveId, Integer term) {
         var slaveIndex = nextIndexes.get(slaveId);
-        var bound = log.lastIndex();
-        //var entries = log.lastIndex() >= slaveIndex ? log.get().subList(slaveIndex, bound) : List.<LogEntry>of();
-        var entries = List.<LogEntry>of();
-        pending.put(slaveId, Pair.of(bound, matchIndexes.get(slaveId)));
-        return new AppendEntries(term, leaderId, 0, null, entries, 0);
+        var batch = Math.min(Constants.APPEND_ENTRIES_BATCH_MAX_SIZE, log.get().size() - slaveIndex);
+        var entries = log.lastIndex() >= slaveIndex ? log.get().subList(slaveIndex, slaveIndex + batch) : List.<Entry>of();
+        var prevLogTerm = log.getByIndex(slaveIndex - 1).map(Entry::term).orElse(null);
+        pending.put(slaveId, Pair.of(slaveIndex + batch, matchIndexes.get(slaveId) + batch));
+        return new AppendEntries(term, leaderId, slaveIndex - 1, prevLogTerm, entries, 0);
     }
 
     public void processResponse(Integer slaveId, AppendEntriesResult data) {
         var pair = pending.remove(slaveId);
-        if (Objects.nonNull(pair)) {
+        if (Objects.nonNull(pair) && nextIndexes.get(slaveId) < pair.getLeft()) {
             if(data.success) {
                 nextIndexes.put(slaveId, pair.getLeft());
                 matchIndexes.put(slaveId, pair.getRight());
@@ -49,4 +51,5 @@ public class SlavesController {
             }
         }
     }
+
 }

@@ -1,9 +1,8 @@
 package com.savchenko.data.communication;
 
 import com.savchenko.data.Data;
-import com.savchenko.data.LogEntry;
 import com.savchenko.data.visitor.DataVisitor;
-import com.savchenko.suportive.Utils;
+import com.savchenko.suportive.Entry;
 
 import java.util.List;
 
@@ -12,10 +11,10 @@ public class AppendEntries extends Data {
     public Integer leaderId;
     public Integer prevLogIndex;
     public Integer prevLogTerm;
-    public List<LogEntry> entries;
+    public List<Entry> entries;
     public Integer leaderCommit;
 
-    public AppendEntries(Integer term, Integer leaderId, Integer prevLogIndex, Integer prevLogTerm, List<LogEntry> entries, Integer leaderCommit) {
+    public AppendEntries(Integer term, Integer leaderId, Integer prevLogIndex, Integer prevLogTerm, List<Entry> entries, Integer leaderCommit) {
         this.term = term;
         this.leaderId = leaderId;
         this.prevLogIndex = prevLogIndex;
