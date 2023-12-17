@@ -6,15 +6,18 @@ import com.savchenko.data.Message;
 import com.savchenko.data.communication.ClientMessage;
 import com.savchenko.data.communication.RedirectMessage;
 import com.savchenko.data.communication.Response;
+import com.savchenko.data.communication.StateRequest;
 import com.savchenko.data.visitor.DataUnexpected;
 import com.savchenko.suportive.Utils;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 
@@ -33,7 +36,11 @@ public class RaftClient implements Runnable {
         var scanner = new Scanner(System.in);
         while (true) {
             var value = scanner.nextLine();
-            connectionRef.get().send(new ClientMessage(value));
+            if(value.equals("state")){
+                connectionRef.get().send(new StateRequest());
+            } else {
+                connectionRef.get().send(new ClientMessage(value));
+            }
         }
     }
 
@@ -44,7 +51,7 @@ public class RaftClient implements Runnable {
             var connection = ServerConnection.startNew(socket, queue, socket.getLocalPort(), ConnectionType.CLIENT);
             connectionRef.set(connection);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            createConnection(List.of(8080, 8081, 8082).get(ThreadLocalRandom.current().nextInt(0, 3)));
         }
     }
 
@@ -65,6 +72,7 @@ public class RaftClient implements Runnable {
 
                     @Override
                     public Void accept(Response data) {
+                        System.out.println(Utils.writeObject(data));
                         return null;
                     }
                 });

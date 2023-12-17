@@ -25,9 +25,11 @@ public class Log {
     }
 
     public void append(Integer fromIndex, List<Entry> entries) {
-        var newLog = log.subList(0, fromIndex);
-        newLog.addAll(entries);
-        log = newLog;
+        if(fromIndex >= 0 && fromIndex < log.size()) {
+            var newLog = log.subList(0, fromIndex);
+            newLog.addAll(entries);
+            log = newLog;
+        }
     }
 
     public Pair<Integer, Integer> getStateForVoting(){
@@ -47,7 +49,7 @@ public class Log {
     }
 
     public List<Entry> get(){
-        return new ArrayList<>(log);
+        return log;
     }
 
     public void add(Integer term, ClientMessage message){

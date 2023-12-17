@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class SlavesController {
     private Integer leaderId;
@@ -31,13 +32,13 @@ public class SlavesController {
         pending = slaveIds.stream().collect(Collectors.toMap(Function.identity(), id -> Pair.of(initialIndex, 0)));
     }
 
-    public AppendEntries newAppendEntries(Integer slaveId, Integer term) {
+    public AppendEntries newAppendEntries(Integer slaveId, Integer term, Integer commitIndex) {
         var slaveIndex = nextIndexes.get(slaveId);
         var batch = Math.min(Constants.APPEND_ENTRIES_BATCH_MAX_SIZE, log.get().size() - slaveIndex);
         var entries = log.lastIndex() >= slaveIndex ? log.get().subList(slaveIndex, slaveIndex + batch) : List.<Entry>of();
         var prevLogTerm = log.getByIndex(slaveIndex - 1).map(Entry::term).orElse(null);
         pending.put(slaveId, Pair.of(slaveIndex + batch, matchIndexes.get(slaveId) + batch));
-        return new AppendEntries(term, leaderId, slaveIndex - 1, prevLogTerm, entries, 0);
+        return new AppendEntries(term, leaderId, slaveIndex - 1, prevLogTerm, entries, commitIndex);
     }
 
     public void processResponse(Integer slaveId, AppendEntriesResult data) {
@@ -52,4 +53,8 @@ public class SlavesController {
         }
     }
 
+    public Integer calculateNewCommitIndex(){
+        var indexes = matchIndexes.values().stream().map(index -> index - 1).sorted().toList();
+        return indexes.get(slaveIds.size() / 2);
+    }
 }

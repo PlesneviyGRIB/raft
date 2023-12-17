@@ -35,7 +35,6 @@ public class ConnectionManager implements Runnable {
             try {
                 TimeUnit.MILLISECONDS.sleep(Constants.RENEW_CONNECTION_TIMEOUT);
             } catch (InterruptedException ignore) {
-                ignore.printStackTrace();
             }
         }
     }

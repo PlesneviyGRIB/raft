@@ -1,24 +1,40 @@
 package com.savchenko.node;
 
-import com.savchenko.suportive.Entry;
-import org.apache.commons.lang3.tuple.Pair;
-
-import java.util.List;
-
 public class StateMachine {
-    private Log log = new Log();
-    public StateMachine(){
+
+    private Log state = new Log();
+    private Log log;
+    private Integer commitIndex = -1;
+    private Integer lastApplied = -1;
+    public StateMachine(Log log){
+        this.log = log;
     }
 
-    public void commit(List<Entry> entries){
-        log.append(log.lastIndex(), entries);
+    public void updateCommitIndex(Integer leaderCommitIndex) {
+        if(leaderCommitIndex > commitIndex){
+            commitIndex = Math.min(leaderCommitIndex, log.lastIndex());
+            commitIfGrater();
+        }
     }
 
-    public void commit(Entry entry){
-        log.append(log.lastIndex(), List.of(entry));
+    private void commitIfGrater(){
+        if(commitIndex > lastApplied){
+            var entries = log.get().subList(lastApplied + 1, commitIndex + 1);
+            lastApplied = commitIndex;
+            state.get().addAll(entries);
+        }
+    }
+
+    public void setCommitIndex(Integer newCommitIndex){
+        commitIndex = newCommitIndex;
+        commitIfGrater();
+    }
+
+    public Integer getCommitIndex(){
+        return commitIndex;
     }
 
     public Log getLog(){
-        return log;
+        return state;
     }
 }

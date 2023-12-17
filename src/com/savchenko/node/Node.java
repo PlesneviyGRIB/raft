@@ -8,7 +8,6 @@ import com.savchenko.data.communication.*;
 import com.savchenko.data.visitor.DataTraversal;
 import com.savchenko.suportive.Entry;
 import com.savchenko.suportive.Utils;
-import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.IOException;
 import java.util.*;
@@ -22,7 +21,7 @@ public class Node {
     private final BlockingQueue<Message> queue;
     private final ConnectionManager connectionManager;
     private final Log log = new Log();
-    private final StateMachine stateMachine = new StateMachine();
+    private final StateMachine stateMachine = new StateMachine(log);
     private final NodeTerm nodeTerm = new NodeTerm();
     private NodeState state = NodeState.FOLLOWER;
 
@@ -72,9 +71,13 @@ public class Node {
                             var entryOpt = log.getByIndex(data.prevLogIndex);
                             result.success = data.term >= nodeTerm.term() && entryOpt.map(e -> e.term().equals(data.prevLogTerm)).orElse(true);
                             result.term = nodeTerm.term();
-                            connectionManager.send(nodeTerm.getLeaderId(), result);
                             updateTerm(data.term);
                             nodeTerm.setLeaderId(data.leaderId);
+                            connectionManager.send(nodeTerm.getLeaderId(), result);
+                            if(result.success){
+                                log.append(data.prevLogIndex, data.entries);
+                            }
+                            stateMachine.updateCommitIndex(data.leaderCommit);
                             return null;
                         }
 
@@ -170,7 +173,7 @@ public class Node {
         while (state == NodeState.LEADER) {
             connectionManager
                     .getNodeConnections()
-                    .forEach(c -> c.send(controller.newAppendEntries(c.getResolvedPort(), nodeTerm.term())));
+                    .forEach(c -> c.send(controller.newAppendEntries(c.getResolvedPort(), nodeTerm.term(), stateMachine.getCommitIndex())));
 
             var timeout = System.currentTimeMillis() + Constants.APPEND_ENTRIES_TIMEOUT;
 
@@ -181,7 +184,6 @@ public class Node {
                             @Override
                             public Void accept(ClientMessage data) {
                                 log.add(nodeTerm.term(), data);
-                                //response -> connectionManager.send(m.source(), response)
                                 return null;
                             }
 
@@ -202,6 +204,7 @@ public class Node {
                             }
                         }));
             }
+            checkForConsensus(controller);
         }
     }
 
@@ -218,5 +221,12 @@ public class Node {
             nodeTerm.setVoteFor(request.candidateId);
         }
         return new VoteResponse(nodeTerm.term(), voteGranted);
+    }
+
+    private void checkForConsensus(SlavesController controller){
+        var candidateIndex = controller.calculateNewCommitIndex();
+        if(candidateIndex > stateMachine.getCommitIndex() && log.get().get(candidateIndex).term().equals(nodeTerm.term())){
+            stateMachine.setCommitIndex(candidateIndex);
+        }
     }
 }
