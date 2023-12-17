@@ -26,10 +26,9 @@ public class SlavesController {
         this.log = log;
         this.leaderId = leaderId;
         this.slaveIds = slaveIds;
-        var initialIndex = log.lastIndex() + 1;
-        nextIndexes = slaveIds.stream().collect(Collectors.toMap(Function.identity(), id -> initialIndex));
+        nextIndexes = slaveIds.stream().collect(Collectors.toMap(Function.identity(), id -> 0));
         matchIndexes = slaveIds.stream().collect(Collectors.toMap(Function.identity(), id -> 0));
-        pending = slaveIds.stream().collect(Collectors.toMap(Function.identity(), id -> Pair.of(initialIndex, 0)));
+        pending = slaveIds.stream().collect(Collectors.toMap(Function.identity(), id -> Pair.of(0, 0)));
     }
 
     public AppendEntries newAppendEntries(Integer slaveId, Integer term, Integer commitIndex) {
@@ -49,6 +48,7 @@ public class SlavesController {
                 matchIndexes.put(slaveId, pair.getRight());
             } else {
                 nextIndexes.put(slaveId, nextIndexes.get(slaveId) - 1);
+                matchIndexes.put(slaveId, matchIndexes.get(slaveId) - 1);
             }
         }
     }

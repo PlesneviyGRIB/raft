@@ -2,8 +2,8 @@ package com.savchenko.node;
 
 public class StateMachine {
 
-    private Log state = new Log();
-    private Log log;
+    private final Log state = new Log();
+    private final Log log;
     private Integer commitIndex = -1;
     private Integer lastApplied = -1;
     public StateMachine(Log log){
@@ -36,5 +36,10 @@ public class StateMachine {
 
     public Log getLog(){
         return state;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%s, commitIndex: %d", state, commitIndex);
     }
 }

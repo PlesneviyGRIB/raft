@@ -5,12 +5,7 @@ import com.savchenko.data.visitor.DataVisitor;
 import com.savchenko.suportive.Utils;
 
 public class StateRequest extends Data {
-    public Integer count;
-
     public StateRequest() {
-    }
-    public StateRequest(Integer count) {
-        this.count = count;
     }
 
     @Override

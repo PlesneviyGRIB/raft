@@ -4,7 +4,6 @@ import com.savchenko.data.communication.ClientMessage;
 import com.savchenko.suportive.Entry;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
@@ -25,11 +24,9 @@ public class Log {
     }
 
     public void append(Integer fromIndex, List<Entry> entries) {
-        if(fromIndex >= 0 && fromIndex < log.size()) {
-            var newLog = log.subList(0, fromIndex);
-            newLog.addAll(entries);
-            log = newLog;
-        }
+        var newLog = log.subList(0, fromIndex + 1);
+        newLog.addAll(entries);
+        log = newLog;
     }
 
     public Pair<Integer, Integer> getStateForVoting(){
@@ -56,8 +53,9 @@ public class Log {
         log.add(Entry.of(term, message.value));
     }
 
-    public void print() {
+    @Override
+    public String toString() {
         var values = log.stream().map(e -> String.format("{ %s : %s }", e.term(), e.value())).collect(Collectors.joining(", "));
-        System.out.printf("[%s]\n", values);
+        return String.format("[%s]", values);
     }
 }

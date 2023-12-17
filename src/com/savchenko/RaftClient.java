@@ -36,11 +36,19 @@ public class RaftClient implements Runnable {
         var scanner = new Scanner(System.in);
         while (true) {
             var value = scanner.nextLine();
+            if(value.toLowerCase().startsWith("reconnect")){
+                createConnection(Integer.parseInt(value.split(" ")[1]));
+                continue;
+            }
             if(value.equals("state")){
                 connectionRef.get().send(new StateRequest());
-            } else {
-                connectionRef.get().send(new ClientMessage(value));
+                continue;
             }
+            if(connectionRef.get().isDead()){
+                randomConnection();
+                continue;
+            }
+            connectionRef.get().send(new ClientMessage(value));
         }
     }
 
@@ -50,15 +58,21 @@ public class RaftClient implements Runnable {
             var socket = new Socket(Constants.HOST, port);
             var connection = ServerConnection.startNew(socket, queue, socket.getLocalPort(), ConnectionType.CLIENT);
             connectionRef.set(connection);
-        } catch (IOException e) {
-            createConnection(List.of(8080, 8081, 8082).get(ThreadLocalRandom.current().nextInt(0, 3)));
+        } catch (IOException ioException) {
+            randomConnection();
         }
+    }
+
+    private void randomConnection(){
+        var targetPort = List.of(8080, 8081, 8082).get(ThreadLocalRandom.current().nextInt(0, 3));
+        logger.info(Utils.formatError("Random connection to [%s]. Tip: type 'reconnect 0001' to bind with port 0001", targetPort));
+        createConnection(targetPort);
     }
 
     @Override
     public void run() {
         try {
-            createConnection(8080);
+            randomConnection();
             while (!Thread.currentThread().isInterrupted()) {
                 queue.take().data().accept(new DataUnexpected() {
                     @Override

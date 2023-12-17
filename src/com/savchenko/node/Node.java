@@ -69,15 +69,15 @@ public class Node {
                             System.out.println(m);
                             var result = new AppendEntriesResult();
                             var entryOpt = log.getByIndex(data.prevLogIndex);
-                            result.success = data.term >= nodeTerm.term() && entryOpt.map(e -> e.term().equals(data.prevLogTerm)).orElse(true);
+                            result.success = data.term >= nodeTerm.term() && entryOpt.map(e -> e.term().equals(data.prevLogTerm)).orElse(data.prevLogIndex == -1);
                             result.term = nodeTerm.term();
                             updateTerm(data.term);
                             nodeTerm.setLeaderId(data.leaderId);
                             connectionManager.send(nodeTerm.getLeaderId(), result);
                             if(result.success){
                                 log.append(data.prevLogIndex, data.entries);
+                                stateMachine.updateCommitIndex(data.leaderCommit);
                             }
-                            stateMachine.updateCommitIndex(data.leaderCommit);
                             return null;
                         }
 
@@ -190,10 +190,7 @@ public class Node {
                             @Override
                             public Void accept(StateRequest data) {
                                 var list = stateMachine.getLog().get().stream().map(Entry::value).toList();
-                                var state = Optional.ofNullable(data.count)
-                                        .map(c -> list.subList(list.size() - c, list.size()))
-                                        .orElse(list);
-                                connectionManager.send(m.source(), new Response(state));
+                                connectionManager.send(m.source(), new Response(list));
                                 return null;
                             }
 
@@ -225,8 +222,13 @@ public class Node {
 
     private void checkForConsensus(SlavesController controller){
         var candidateIndex = controller.calculateNewCommitIndex();
-        if(candidateIndex > stateMachine.getCommitIndex() && log.get().get(candidateIndex).term().equals(nodeTerm.term())){
+        if(candidateIndex > stateMachine.getCommitIndex()){
             stateMachine.setCommitIndex(candidateIndex);
         }
+    }
+
+    @Override
+    public String toString() {
+        return String.format("LOG: %s\nSTATE: %s\n", log, stateMachine);
     }
 }
