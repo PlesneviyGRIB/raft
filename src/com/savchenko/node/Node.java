@@ -21,13 +21,14 @@ public class Node {
     private final BlockingQueue<Message> queue;
     private final ConnectionManager connectionManager;
     private final Log log = new Log();
-    private final StateMachine stateMachine = new StateMachine(log);
+    private StateMachine stateMachine;
     private final NodeTerm nodeTerm = new NodeTerm();
     private NodeState state = NodeState.FOLLOWER;
 
-    public Node(Integer port, List<Integer> slaves) throws IOException {
+    public Node(Integer port, List<Integer> slaves, StateMachineEngine engine) throws IOException {
         queue = new LinkedBlockingQueue<>();
         connectionManager = new ConnectionManager(port, slaves, queue);
+        stateMachine = new StateMachine(log, engine);
     }
 
     public void start() {
@@ -189,8 +190,8 @@ public class Node {
 
                             @Override
                             public Void accept(StateRequest data) {
-                                var list = stateMachine.getLog().get().stream().map(Entry::value).toList();
-                                connectionManager.send(m.source(), new Response(list));
+                                var value = stateMachine.getEngine().stringify();
+                                connectionManager.send(m.source(), new Response(value));
                                 return null;
                             }
 
@@ -225,10 +226,5 @@ public class Node {
         if(candidateIndex > stateMachine.getCommitIndex()){
             stateMachine.setCommitIndex(candidateIndex);
         }
-    }
-
-    @Override
-    public String toString() {
-        return String.format("LOG: %s\nSTATE: %s\n", log, stateMachine);
     }
 }

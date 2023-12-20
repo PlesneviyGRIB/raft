@@ -1,13 +1,13 @@
 package com.savchenko.node;
 
 public class StateMachine {
-
-    private final Log state = new Log();
+    private final StateMachineEngine engine;
     private final Log log;
     private Integer commitIndex = -1;
     private Integer lastApplied = -1;
-    public StateMachine(Log log){
+    public StateMachine(Log log, StateMachineEngine engine){
         this.log = log;
+        this.engine = engine;
     }
 
     public void updateCommitIndex(Integer leaderCommitIndex) {
@@ -19,9 +19,10 @@ public class StateMachine {
 
     private void commitIfGrater(){
         if(commitIndex > lastApplied){
-            var entries = log.get().subList(lastApplied + 1, commitIndex + 1);
+            log.get()
+                    .subList(lastApplied + 1, commitIndex + 1)
+                    .forEach(e -> engine.apply(e.value()));
             lastApplied = commitIndex;
-            state.get().addAll(entries);
         }
     }
 
@@ -34,12 +35,7 @@ public class StateMachine {
         return commitIndex;
     }
 
-    public Log getLog(){
-        return state;
-    }
-
-    @Override
-    public String toString() {
-        return String.format("%s, commitIndex: %d", state, commitIndex);
+    public StateMachineEngine getEngine(){
+        return engine;
     }
 }

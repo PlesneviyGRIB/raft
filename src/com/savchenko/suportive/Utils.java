@@ -1,6 +1,7 @@
 package com.savchenko.suportive;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.savchenko.data.Data;
@@ -28,6 +29,14 @@ public class Utils {
         }
     }
 
+    public static <T> T readAnyObject(String object) {
+        try {
+            return objectMapper.readValue(object, new TypeReference<T>() {});
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static String formatSuccess(String string, Object... objects) {
         return "\u001B[32m" + String.format(string, objects) + "\u001B[0m";
     }
@@ -46,13 +55,5 @@ public class Utils {
         }
         var delta = (long) (value * aspect);
         return value + ThreadLocalRandom.current().nextLong(-delta, delta);
-    }
-
-    public static void sleep(Integer milliseconds){
-        try {
-            TimeUnit.MILLISECONDS.sleep(milliseconds);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
     }
 }

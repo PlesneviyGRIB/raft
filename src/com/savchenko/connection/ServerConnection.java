@@ -37,12 +37,13 @@ public class ServerConnection extends Thread {
             resolvedConnection = (InitMessage) Utils.readObject(scanner.next());
             logger.info(Utils.formatSuccess("NEW %s [%s]", resolvedConnection.type, resolvedConnection.port));
 
-            while (!Thread.currentThread().isInterrupted() && !socket.isClosed()) {
+            while (!Thread.currentThread().isInterrupted() && !socket.isClosed() && scanner.hasNext()) {
                 var rawData = scanner.next();
                 var data = Utils.readObject(rawData);
                 queue.add(new Message(resolvedConnection.port, data));
             }
         } catch (Exception ignore) {
+            ignore.printStackTrace();
         } finally {
             kill();
             logger.info(Utils.formatError("%s DISCONNECTED %s", resolvedConnection.type, resolvedConnection.port));
@@ -54,6 +55,7 @@ public class ServerConnection extends Thread {
             writer.write(Utils.writeObject(data).concat(" "));
             writer.flush();
         } catch (IOException ignore) {
+            ignore.printStackTrace();
             kill();
         }
     }

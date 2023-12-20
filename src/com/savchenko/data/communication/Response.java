@@ -6,11 +6,11 @@ import com.savchenko.data.visitor.DataVisitor;
 import java.util.List;
 
 public class Response extends Data {
-    public List<String> values;
+    public String value;
     public Response() {
     }
-    public Response(List<String> values) {
-        this.values = values;
+    public Response(String value) {
+        this.value = value;
     }
 
     @Override
