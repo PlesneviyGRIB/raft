@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.savchenko.data.Data;
 
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 public class Utils {
     private final static ObjectMapper objectMapper = new ObjectMapper();
@@ -59,5 +60,13 @@ public class Utils {
         }
         var delta = (long) (value * aspect);
         return value + ThreadLocalRandom.current().nextLong(-delta, delta);
+    }
+
+    public static void sleep(Integer milliseconds){
+        try {
+            TimeUnit.MILLISECONDS.sleep(milliseconds);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

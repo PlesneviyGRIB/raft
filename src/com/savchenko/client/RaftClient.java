@@ -25,12 +25,12 @@ import java.util.function.Function;
 import java.util.logging.Logger;
 
 public class RaftClient implements Runnable {
-    private final static Logger logger = Logger.getLogger(ServerConnection.class.getSimpleName());
-    private final BlockingQueue<Message> queue = new LinkedBlockingQueue<>();
-    private final AtomicReference<ServerConnection> connectionRef = new AtomicReference<>();
+    final static Logger logger = Logger.getLogger(ServerConnection.class.getSimpleName());
+    final BlockingQueue<Message> queue = new LinkedBlockingQueue<>();
+    final AtomicReference<ServerConnection> connectionRef = new AtomicReference<>();
     private final List<Integer> nodeIds;
     private final Function<String, Data> userInputProcessor;
-    private final Consumer<Response> responseProcessor;
+    protected final Consumer<Response> responseProcessor;
 
     public RaftClient(List<Integer> nodeIds, Function<String, Data> userInputProcessor, Consumer<Response> responseProcessor) {
         this.nodeIds = nodeIds;
@@ -48,11 +48,15 @@ public class RaftClient implements Runnable {
             }
             Optional
                     .ofNullable(userInputProcessor.apply(value))
-                    .ifPresent(m -> connectionRef.get().send(m));
+                    .ifPresent(this::send);
         }
     }
 
-    private void createConnection(Integer port) {
+    void send(Data data) {
+        connectionRef.get().send(data);
+    }
+
+    void createConnection(Integer port) {
         try {
             TimeUnit.MILLISECONDS.sleep(1000L);
             Optional.ofNullable(connectionRef.get()).ifPresent(ServerConnection::kill);
@@ -64,7 +68,7 @@ public class RaftClient implements Runnable {
         }
     }
 
-    private void randomConnection() {
+    void randomConnection() {
         var targetPort = nodeIds.get(ThreadLocalRandom.current().nextInt(0, nodeIds.size()));
         logger.info(Utils.formatError("Random connection to [%s]. Tip: type 'reconnect 0001' to bind with port 0001", targetPort));
         createConnection(targetPort);

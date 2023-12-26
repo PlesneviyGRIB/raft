@@ -8,4 +8,5 @@ public class Constants {
     public static final Integer APPEND_ENTRIES_ROLLBACK_BATCH_SIZE = 5;
     public static final Long ELECTION_TIMEOUT = 2000L;
     public static final Long CANDIDATE_TIMEOUT_DURATION = 2000L;
+    public static final Long CLIENT_CAS_CHECK_TIMEOUT = 4000L;
 }
