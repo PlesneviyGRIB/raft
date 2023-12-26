@@ -18,6 +18,7 @@ import java.util.Scanner;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -53,11 +54,12 @@ public class RaftClient implements Runnable {
 
     private void createConnection(Integer port) {
         try {
+            TimeUnit.MILLISECONDS.sleep(1000L);
             Optional.ofNullable(connectionRef.get()).ifPresent(ServerConnection::kill);
             var socket = new Socket(Constants.HOST, port);
             var connection = ServerConnection.startNew(socket, queue, socket.getLocalPort(), ConnectionType.CLIENT);
             connectionRef.set(connection);
-        } catch (IOException ioException) {
+        } catch (IOException | InterruptedException ioException) {
             randomConnection();
         }
     }

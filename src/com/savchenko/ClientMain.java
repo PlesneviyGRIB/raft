@@ -31,12 +31,12 @@ public class ClientMain {
                         if (input.equalsIgnoreCase("state")) {
                             return new StateRequest();
                         }
-                        var tokens = input.split("_");
+                        var tokens = input.split(" ");
                         if (tokens[0].equals("put")) {
-                            return new ClientMessage(String.format("put_%s_%s", tokens[1], tokens[2]));
+                            return new ClientMessage(String.format("put %s %s", tokens[1], tokens[2]));
                         }
                         if (tokens[0].equals("remove")) {
-                            return new ClientMessage(String.format("remove_%s", tokens[1]));
+                            return new ClientMessage(String.format("remove %s", tokens[1]));
                         }
                         if (tokens[0].equals("get")) {
                             o.key = tokens[1];
@@ -50,7 +50,7 @@ public class ClientMain {
                 },
                 response -> {
                     if(Objects.nonNull(o.key)) {
-                        var map = Utils.<HashMap<String, String>>readAnyObject(response.value);
+                        var map = Utils.<HashMap<String, String>>readObject(response.value);
                         System.out.println(String.format("%s -> %s", o.key, map.get(o.key)));
                         return;
                     }

@@ -34,12 +34,12 @@ public class ServerConnection extends Thread {
         try {
             var scanner = new Scanner(socket.getInputStream());
             // handshake
-            resolvedConnection = (InitMessage) Utils.readObject(scanner.next());
+            resolvedConnection = (InitMessage) Utils.readData(scanner.next());
             logger.info(Utils.formatSuccess("NEW %s [%s]", resolvedConnection.type, resolvedConnection.port));
 
             while (!Thread.currentThread().isInterrupted() && !socket.isClosed() && scanner.hasNext()) {
                 var rawData = scanner.next();
-                var data = Utils.readObject(rawData);
+                var data = Utils.readData(rawData);
                 queue.add(new Message(resolvedConnection.port, data));
             }
         } catch (Exception ignore) {
@@ -52,9 +52,10 @@ public class ServerConnection extends Thread {
 
     public void send(Data data) {
         try {
-            writer.write(Utils.writeObject(data).concat(" "));
+            writer.write(Utils.shieldString(Utils.writeObject(data)).concat("\n"));
             writer.flush();
         } catch (IOException ignore) {
+            System.out.println("HERE");
             ignore.printStackTrace();
             kill();
         }

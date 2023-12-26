@@ -3,15 +3,13 @@ package com.savchenko.suportive;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.savchenko.data.Data;
-import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 
 public class Utils {
     private final static ObjectMapper objectMapper = new ObjectMapper();
+    private final static String delimiter = "____";
 
     public static String writeObject(Object object) {
         try {
@@ -21,32 +19,38 @@ public class Utils {
         }
     }
 
-    public static Data readObject(String object) {
+    public static Data readData(String object) {
         try {
-            return objectMapper.readValue(object, Data.class);
+            var obj = object.replaceAll(delimiter, " ");
+            return objectMapper.readValue(obj, Data.class);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public static <T> T readAnyObject(String object) {
+    public static <T> T readObject(String object) {
         try {
-            return objectMapper.readValue(object, new TypeReference<T>() {});
+            var obj = object.replaceAll(delimiter, " ");
+            return objectMapper.readValue(obj, new TypeReference<T>() {});
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static String shieldString(String string){
+        return string.replaceAll(" ", delimiter);
     }
 
     public static String formatSuccess(String string, Object... objects) {
-        return "\u001B[32m" + String.format(string, objects) + "\u001B[0m";
+        return "\u001B[32m" + java.lang.String.format(string, objects) + "\u001B[0m";
     }
 
     public static String formatInfo(String string, Object... objects) {
-        return "\u001B[34m" + String.format(string, objects) + "\u001B[0m";
+        return "\u001B[34m" + java.lang.String.format(string, objects) + "\u001B[0m";
     }
 
     public static String formatError(String string, Object... objects) {
-        return "\u001B[33m" + String.format(string, objects) + "\u001B[0m";
+        return "\u001B[33m" + java.lang.String.format(string, objects) + "\u001B[0m";
     }
 
     public static Long randomize(Long value, Double aspect){
